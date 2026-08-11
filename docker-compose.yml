@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  planner-api:
+    build: .
+    container_name: swe-planner-api
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=qwen2.5-coder:latest
+      - POSTGRES_SERVER=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=swe_planner_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - postgres
+      - redis
+      - ollama
+    networks:
+      - swe-network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: swe-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - swe-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: swe-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=swe_planner_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - swe-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: swe-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - swe-network
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: swe-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - swe-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
+  ollama_data:
+
+networks:
+  swe-network:
+    driver: bridge
