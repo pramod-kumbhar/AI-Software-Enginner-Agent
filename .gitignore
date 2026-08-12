@@ -1,3 +1,8 @@
+# Environment Configuration
+.env
+.env.*
+!.env.example
+
 # Virtual Environment
 venv/
 .venv/
@@ -18,7 +23,7 @@ htmlcov/
 .tox/
 .nox/
 
-# Temporary generated test workspaces
+# Temporary generated test workspaces & logs
 generated_projects/
 temp_projects/
 *.tmp

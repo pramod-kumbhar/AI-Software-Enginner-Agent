@@ -40,4 +40,18 @@ def test_github_mock_operations():
         )
         assert comment_res["posted"] is True
 
+        # 6. Open-Source Public Repo Search
+        repos = await GitHubToolHandlers.search_public_repositories(query="FastAPI SQLAlchemy", language="python", limit=3)
+        assert len(repos) >= 1
+        assert "full_name" in repos[0]
+
+        # 7. Open-Source Code Snippet Search
+        snippets = await GitHubToolHandlers.search_code_snippets(query="FastAPI async session", language="python", limit=2)
+        assert len(snippets) >= 1
+        assert "path" in snippets[0]
+
+        # 8. Fetch Public File Content
+        pub_file = await GitHubToolHandlers.fetch_public_file_content(owner="tiangolo", repo="full-stack-fastapi-template", file_path="README.md")
+        assert "content" in pub_file
+
     asyncio.run(_run())

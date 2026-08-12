@@ -51,3 +51,27 @@ async def get_pull_request_route(owner: str, repo: str, pull_number: int):
         return await GitHubToolHandlers.get_pull_request(pull_number=pull_number, owner=owner, repo=repo)
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+@router.get("/search/repositories")
+async def search_repositories_route(query: str, language: str = "python", limit: int = 5):
+    """Search public open-source repositories on GitHub."""
+    try:
+        return await GitHubToolHandlers.search_public_repositories(query=query, language=language, limit=limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/search/code")
+async def search_code_route(query: str, language: str = "python", limit: int = 5):
+    """Search public code snippets on GitHub."""
+    try:
+        return await GitHubToolHandlers.search_code_snippets(query=query, language=language, limit=limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/public-file")
+async def get_public_file_route(owner: str, repo: str, path: str, ref: str = "main"):
+    """Fetch raw source code from any public GitHub repository."""
+    try:
+        return await GitHubToolHandlers.fetch_public_file_content(owner=owner, repo=repo, file_path=path, ref=ref)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

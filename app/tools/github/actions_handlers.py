@@ -49,8 +49,8 @@ class GitHubActionsToolHandlers:
         owner, repo = cls._parse_repo(repository)
         headers = cls._get_headers(token)
 
-        # 1. Offline Mock fallback if token is not available
-        if not headers.get("Authorization"):
+        # 1. Offline Mock fallback if token is not available or in test mode
+        if settings.is_test or not headers.get("Authorization"):
             run_id = workflow_run_id or 100201
             return {
                 "status": "completed",
@@ -159,7 +159,7 @@ class GitHubActionsToolHandlers:
         owner, repo = cls._parse_repo(repository)
         headers = cls._get_headers(token)
 
-        if not headers.get("Authorization"):
+        if settings.is_test or not headers.get("Authorization"):
             return [{
                 "job_id": 2002,
                 "job_name": "pytest-suite",
@@ -205,7 +205,7 @@ class GitHubActionsToolHandlers:
         owner, repo = cls._parse_repo(repository)
         headers = cls._get_headers(token)
 
-        if not headers.get("Authorization"):
+        if settings.is_test or not headers.get("Authorization"):
             # Mock failure log excerpt
             mock_raw_log = """2026-08-11T06:30:12.124Z [INFO] Setting up Python 3.11 environment
 2026-08-11T06:30:15.845Z [INFO] Installing requirements: fastapi pytest httpx
@@ -284,7 +284,7 @@ Error: Process completed with exit code 1.
         owner, repo = cls._parse_repo(repository)
         headers = cls._get_headers(token)
 
-        if not headers.get("Authorization"):
+        if settings.is_test or not headers.get("Authorization"):
             return {
                 "triggered": True,
                 "workflow": workflow_id_or_name,

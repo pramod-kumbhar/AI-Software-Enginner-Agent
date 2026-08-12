@@ -34,6 +34,14 @@ class StorageService:
                 cls._instance._deployment_runs: Dict[str, Any] = {}
                 cls._instance._rollback_events: Dict[str, Any] = {}
                 cls._instance._deployment_audit_logs: List[Dict[str, Any]] = []
+                # Day 15 Agent Orchestration & Checkpoint Storage
+                cls._instance._agent_executions: Dict[str, Any] = {}
+                cls._instance._agent_checkpoints: Dict[str, Any] = {}
+                cls._instance._rework_history: Dict[str, List[Dict[str, Any]]] = {}
+                # Day 16 Evaluation & Benchmark Storage
+                cls._instance._evaluation_runs: Dict[str, Any] = {}
+                cls._instance._human_evaluations: Dict[str, List[Dict[str, Any]]] = {}
+                cls._instance._evaluation_regressions: Dict[str, Any] = {}
             return cls._instance
 
     # 1. Planner Storage
@@ -299,6 +307,100 @@ class StorageService:
                 self._generic_metadata: Dict[str, Any] = {}
             return self._generic_metadata.get(key)
 
+    # 7. Day 15 Agent Orchestration, Checkpointing, and Rework
+    def save_agent_execution(self, execution_id: str, data: Any) -> None:
+        with self._lock:
+            val = data.model_dump() if hasattr(data, "model_dump") else data
+            self._agent_executions[execution_id] = val
+
+    def get_agent_execution(self, execution_id: str) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            return self._agent_executions.get(execution_id)
+
+    def list_agent_executions(self, project_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        with self._lock:
+            results = list(self._agent_executions.values())
+            if project_id:
+                results = [r for r in results if r.get("project_id") == project_id]
+            return sorted(results, key=lambda x: x.get("created_at", ""), reverse=True)
+
+    def save_agent_checkpoint(self, thread_id: str, state_data: Any) -> None:
+        with self._lock:
+            val = state_data.model_dump() if hasattr(state_data, "model_dump") else state_data
+            self._agent_checkpoints[thread_id] = {
+                "thread_id": thread_id,
+                "state": val,
+                "saved_at": datetime.now(timezone.utc).isoformat()
+            }
+
+    def get_agent_checkpoint(self, thread_id: str) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            entry = self._agent_checkpoints.get(thread_id)
+            return entry.get("state") if entry else None
+
+    def save_rework_record(self, execution_id: str, rework_data: Any) -> None:
+        with self._lock:
+            val = rework_data.model_dump() if hasattr(rework_data, "model_dump") else rework_data
+            if execution_id not in self._rework_history:
+                self._rework_history[execution_id] = []
+            self._rework_history[execution_id].append(val)
+
+    def list_rework_history(self, execution_id: str) -> List[Dict[str, Any]]:
+        with self._lock:
+            return list(self._rework_history.get(execution_id, []))
+
+    # 8. Day 16 Evaluation, Benchmark, and Regression Storage
+    def save_evaluation_run(self, evaluation_id: str, run_data: Any) -> None:
+        with self._lock:
+            val = run_data.model_dump() if hasattr(run_data, "model_dump") else run_data
+            if not hasattr(self, "_evaluation_runs"):
+                self._evaluation_runs = {}
+            self._evaluation_runs[evaluation_id] = val
+
+    def get_evaluation_run(self, evaluation_id: str) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            if not hasattr(self, "_evaluation_runs"):
+                self._evaluation_runs = {}
+            return self._evaluation_runs.get(evaluation_id)
+
+    def list_evaluation_runs(self, dataset_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        with self._lock:
+            if not hasattr(self, "_evaluation_runs"):
+                self._evaluation_runs = {}
+            results = list(self._evaluation_runs.values())
+            if dataset_id:
+                results = [r for r in results if r.get("dataset_id") == dataset_id]
+            return sorted(results, key=lambda x: x.get("created_at", ""), reverse=True)
+
+    def save_human_evaluation(self, evaluation_id: str, human_eval: Any) -> None:
+        with self._lock:
+            val = human_eval.model_dump() if hasattr(human_eval, "model_dump") else human_eval
+            if not hasattr(self, "_human_evaluations"):
+                self._human_evaluations = {}
+            if evaluation_id not in self._human_evaluations:
+                self._human_evaluations[evaluation_id] = []
+            self._human_evaluations[evaluation_id].append(val)
+
+    def get_human_evaluations(self, evaluation_id: str) -> List[Dict[str, Any]]:
+        with self._lock:
+            if not hasattr(self, "_human_evaluations"):
+                self._human_evaluations = {}
+            return list(self._human_evaluations.get(evaluation_id, []))
+
+    def save_regression_record(self, comparison_id: str, record: Any) -> None:
+        with self._lock:
+            val = record.model_dump() if hasattr(record, "model_dump") else record
+            if not hasattr(self, "_evaluation_regressions"):
+                self._evaluation_regressions = {}
+            self._evaluation_regressions[comparison_id] = val
+
+    def list_regression_records(self) -> List[Dict[str, Any]]:
+        with self._lock:
+            if not hasattr(self, "_evaluation_regressions"):
+                self._evaluation_regressions = {}
+            return list(self._evaluation_regressions.values())
+
 storage_service = StorageService()
+
 
 

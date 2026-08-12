@@ -18,6 +18,15 @@ from app.api.v1.github import router as github_router
 from app.api.v1.ci import router as ci_router, repairs_router
 from app.api.v1.releases import router as releases_router
 from app.api.v1.security import router as security_router
+from app.api.v1.config import router as config_router
+from app.api.v1.providers import router as providers_router
+from app.api.v1.usage import router as usage_router
+from app.api.v1.cost import router as cost_router
+from app.api.v1.quotas import router as quotas_router
+from app.api.v1.approvals import router as approvals_router
+from app.api.v1.agent import router as agent_router
+from app.api.v1.evaluations import router as evaluations_router
+from app.api.v1.evaluation_datasets import router as evaluation_datasets_router
 from app.services.health_service import health_service
 from app.core.observability import metrics
 
@@ -48,6 +57,17 @@ app.include_router(ci_router, prefix=settings.API_V1_STR)
 app.include_router(repairs_router, prefix=settings.API_V1_STR)
 app.include_router(releases_router, prefix=settings.API_V1_STR)
 app.include_router(security_router, prefix=settings.API_V1_STR)
+app.include_router(config_router, prefix=settings.API_V1_STR)
+app.include_router(providers_router, prefix=settings.API_V1_STR)
+app.include_router(usage_router, prefix=settings.API_V1_STR)
+app.include_router(cost_router, prefix=settings.API_V1_STR)
+app.include_router(quotas_router, prefix=settings.API_V1_STR)
+app.include_router(approvals_router, prefix=settings.API_V1_STR)
+app.include_router(agent_router, prefix=settings.API_V1_STR)
+app.include_router(evaluations_router, prefix=settings.API_V1_STR)
+app.include_router(evaluation_datasets_router, prefix=settings.API_V1_STR)
+
+
 
 
 @app.get("/health", tags=["Health"])

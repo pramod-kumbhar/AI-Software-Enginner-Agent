@@ -16,6 +16,8 @@ from app.services.storage import storage_service
 from app.core.config import settings
 from app.core.prompt_guard import prompt_guard
 from app.core.secret_scanner import secret_scanner
+from app.services.usage_tracker import usage_tracker
+
 
 
 class ToolExecutor:
@@ -156,10 +158,27 @@ class ToolExecutor:
                 duration_ms=duration
             )
 
-        # 7. Audit log and persist
+        # 7. Audit log, usage tracking and persist
         tool_audit_logger.record_execution(request, result, tool_def.risk_level, started_at)
         storage_service.save_tool_request(request.request_id, result.model_dump())
+        
+        # Record FinOps & tool duration telemetry
+        agent_id = "Agent"
+        if request.authorization_context:
+            agent_id = getattr(request.authorization_context, "agent_name", None) or getattr(request.authorization_context, "role", "Agent")
+        
+        usage_tracker.record_tool_call(
+            tool_name=request.tool_name,
+            agent=agent_id,
+            duration_ms=result.duration_ms,
+            status=result.status.value,
+            project_id=getattr(request.authorization_context, "project_id", "default_project") if request.authorization_context else "default_project",
+            risk_level=tool_def.risk_level.value,
+            error=result.error
+        )
         return result
 
+
 tool_executor = ToolExecutor()
+
 

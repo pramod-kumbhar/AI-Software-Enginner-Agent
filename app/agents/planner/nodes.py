@@ -508,15 +508,15 @@ async def plan_synthesizer_node(state: PlannerState) -> Dict[str, Any]:
     
     plan = StructuredSoftwareDevelopmentPlan(
         project_information=proj_info,
-        recommended_technology_stack=state.get("recommended_tech_stack", RecommendedTechStack()),
-        architecture_recommendation=state.get("architecture_recommendation", ArchitectureRecommendation()),
+        recommended_technology_stack=state.get("recommended_tech_stack") or RecommendedTechStack(),
+        architecture_recommendation=state.get("architecture_recommendation") or ArchitectureRecommendation(),
         requirements=req_container,
-        assumptions=state.get("assumptions", []),
-        features=state.get("features", []),
+        assumptions=state.get("assumptions") or [],
+        features=state.get("features") or [],
         tasks=tasks,
-        risks=state.get("risks", []),
-        testing_strategy=state.get("testing_strategy", TestingStrategy()),
-        deployment_recommendation=state.get("deployment_recommendation", DeploymentRecommendation()),
+        risks=state.get("risks") or [],
+        testing_strategy=state.get("testing_strategy") or TestingStrategy(),
+        deployment_recommendation=state.get("deployment_recommendation") or DeploymentRecommendation(),
         execution_metadata=metadata
     )
     

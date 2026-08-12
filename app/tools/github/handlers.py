@@ -33,8 +33,8 @@ class GitHubToolHandlers:
         headers = cls._get_headers(token)
         url = f"{settings.GITHUB_API_BASE_URL}/repos/{target_owner}/{target_repo}"
         
-        if not headers.get("Authorization"):
-            # Mock / Offline representation when token is not configured
+        if settings.is_test or not headers.get("Authorization"):
+            # Mock / Offline representation when token is not configured or in test mode
             return {
                 "owner": target_owner,
                 "repository": target_repo,
@@ -70,7 +70,7 @@ class GitHubToolHandlers:
         headers = cls._get_headers(token)
         url = f"{settings.GITHUB_API_BASE_URL}/repos/{target_owner}/{target_repo}/contents/{file_path}?ref={ref}"
         
-        if not headers.get("Authorization"):
+        if settings.is_test or not headers.get("Authorization"):
             return {
                 "file_path": file_path,
                 "content": f"# Mock file content from GitHub repository {target_owner}/{target_repo}\n",
@@ -101,7 +101,7 @@ class GitHubToolHandlers:
         target_repo = repo or settings.GITHUB_REPOSITORY or "ai-software-engineer-agent"
         
         headers = cls._get_headers(token)
-        if not headers.get("Authorization"):
+        if settings.is_test or not headers.get("Authorization"):
             return {
                 "owner": target_owner,
                 "repository": target_repo,
@@ -158,7 +158,7 @@ class GitHubToolHandlers:
             "base": base_branch
         }
         
-        if not headers.get("Authorization"):
+        if settings.is_test or not headers.get("Authorization"):
             # Persist in local storage service for offline / test retrieval
             mock_pr_number = 101
             pr_data = {
@@ -190,7 +190,8 @@ class GitHubToolHandlers:
                     "owner": target_owner,
                     "repository": target_repo,
                     "html_url": data.get("html_url"),
-                    "state": data.get("state")
+                    "state": data.get("state"),
+                    "created_at": data.get("created_at")
                 }
                 storage_service.save_github_pr(f"{target_owner}_{target_repo}_{data.get('number')}", pr_data)
                 return pr_data
@@ -208,7 +209,7 @@ class GitHubToolHandlers:
             return stored
             
         headers = cls._get_headers(token)
-        if not headers.get("Authorization"):
+        if settings.is_test or not headers.get("Authorization"):
             return {
                 "pr_number": pull_number,
                 "title": f"PR #{pull_number}",
@@ -232,7 +233,7 @@ class GitHubToolHandlers:
         target_repo = repo or settings.GITHUB_REPOSITORY or "ai-software-engineer-agent"
         
         headers = cls._get_headers(token)
-        if not headers.get("Authorization"):
+        if settings.is_test or not headers.get("Authorization"):
             return {
                 "pr_number": pull_number,
                 "comment": comment,
@@ -247,3 +248,140 @@ class GitHubToolHandlers:
                 return {"pr_number": pull_number, "comment": comment, "posted": True}
             else:
                 raise RuntimeError(f"Failed to comment on PR #{pull_number}: {resp.text}")
+
+    # =========================================================================
+    # OPEN-SOURCE CODE SEARCH & REFERENCE MINING (PUBLIC REPOSITORIES)
+    # =========================================================================
+    @classmethod
+    async def search_public_repositories(
+        cls,
+        query: str,
+        language: str = "python",
+        sort: str = "stars",
+        limit: int = 5,
+        token: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search top public open-source repositories matching the query.
+        """
+        headers = cls._get_headers(token)
+        q = f"{query} language:{language}"
+        url = f"{settings.GITHUB_API_BASE_URL}/search/repositories?q={q}&sort={sort}&order=desc&per_page={limit}"
+
+        if settings.is_test or not headers.get("Authorization"):
+            # Return high-quality reference repositories in offline/mock mode
+            return [
+                {
+                    "full_name": f"open-source-reference/{query.lower().replace(' ', '-')}",
+                    "stars": 1240,
+                    "description": f"Verified open source reference architecture for {query}",
+                    "html_url": f"https://github.com/open-source-reference/{query.lower().replace(' ', '-')}",
+                    "is_mock": True
+                }
+            ]
+
+        async with httpx.AsyncClient(follow_redirects=True, timeout=12.0) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                items = data.get("items", [])
+                return [
+                    {
+                        "full_name": item.get("full_name"),
+                        "stars": item.get("stargazers_count", 0),
+                        "description": item.get("description", ""),
+                        "html_url": item.get("html_url"),
+                        "default_branch": item.get("default_branch", "main"),
+                        "license": item.get("license", {}).get("spdx_id", "Unknown") if item.get("license") else "None"
+                    }
+                    for item in items
+                ]
+            else:
+                logger.warning(f"GitHub repo search returned HTTP {resp.status_code}: {resp.text[:120]}")
+                return []
+
+    @classmethod
+    async def search_code_snippets(
+        cls,
+        query: str,
+        language: str = "python",
+        limit: int = 5,
+        token: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for real working code snippets in public open-source GitHub repositories.
+        """
+        headers = cls._get_headers(token)
+        q = f"{query} language:{language}"
+        url = f"{settings.GITHUB_API_BASE_URL}/search/code?q={q}&per_page={limit}"
+
+        if settings.is_test or not headers.get("Authorization"):
+            return [
+                {
+                    "name": "example_service.py",
+                    "path": "app/services/example_service.py",
+                    "repository": "tiangolo/full-stack-fastapi-template",
+                    "html_url": "https://github.com/tiangolo/full-stack-fastapi-template",
+                    "is_mock": True
+                }
+            ]
+
+        async with httpx.AsyncClient(follow_redirects=True, timeout=12.0) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                items = data.get("items", [])
+                return [
+                    {
+                        "name": item.get("name"),
+                        "path": item.get("path"),
+                        "repository": item.get("repository", {}).get("full_name"),
+                        "html_url": item.get("html_url"),
+                        "git_url": item.get("git_url")
+                    }
+                    for item in items
+                ]
+            else:
+                logger.warning(f"GitHub code search returned HTTP {resp.status_code}: {resp.text[:120]}")
+                return []
+
+    @classmethod
+    async def fetch_public_file_content(
+        cls,
+        owner: str,
+        repo: str,
+        file_path: str,
+        ref: str = "main",
+        token: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Fetch the exact source code of a file from any public GitHub repository.
+        """
+        headers = cls._get_headers(token)
+        url = f"{settings.GITHUB_API_BASE_URL}/repos/{owner}/{repo}/contents/{file_path}?ref={ref}"
+
+        if settings.is_test or not headers.get("Authorization"):
+            return {
+                "owner": owner,
+                "repo": repo,
+                "file_path": file_path,
+                "content": f"# Reference implementation from {owner}/{repo}\n# File: {file_path}\n",
+                "is_mock": True
+            }
+
+        async with httpx.AsyncClient(follow_redirects=True, timeout=12.0) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                content_encoded = data.get("content", "")
+                content_decoded = base64.b64decode(content_encoded).decode("utf-8") if content_encoded else ""
+                return {
+                    "owner": owner,
+                    "repo": repo,
+                    "file_path": file_path,
+                    "content": content_decoded,
+                    "sha": data.get("sha"),
+                    "size": data.get("size")
+                }
+            else:
+                raise RuntimeError(f"Failed to fetch public file from {owner}/{repo}: {resp.text[:120]}")
